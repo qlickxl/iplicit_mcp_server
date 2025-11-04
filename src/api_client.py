@@ -524,3 +524,153 @@ class IplicitAPIClient:
             return updated_document
 
         return response
+
+    # ===== PHASE 4: DOCUMENT WORKFLOW OPERATIONS =====
+
+    async def post_document(self, document_id: str, posting_date: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Post a draft document to finalize it
+
+        Args:
+            document_id: Document ID or reference to post
+            posting_date: Optional posting date (ISO format YYYY-MM-DD)
+                         If not provided, uses document date
+
+        Returns:
+            Posted document data
+
+        Raises:
+            ValueError: If document not in draft status or validation fails
+            FileNotFoundError: If document not found
+            PermissionError: For permission errors
+            RuntimeError: For other API errors
+        """
+        body = {}
+        if posting_date:
+            body["postingDate"] = posting_date
+
+        response = await self.make_request(
+            f"document/{document_id}/post",
+            method="POST",
+            body=body
+        )
+
+        # If response is empty or just an ID, fetch the posted document
+        if not response or isinstance(response, str):
+            posted_document = await self.make_request(f"document/{document_id}")
+            return posted_document
+
+        return response
+
+    async def approve_document(self, document_id: str, approval_note: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Approve a document (if approval workflow is enabled)
+
+        Args:
+            document_id: Document ID or reference to approve
+            approval_note: Optional approval note/comment
+
+        Returns:
+            Approved document data
+
+        Raises:
+            ValueError: If document not in correct status or validation fails
+            FileNotFoundError: If document not found
+            PermissionError: For permission errors
+            RuntimeError: For other API errors
+        """
+        body = {}
+        if approval_note:
+            body["note"] = approval_note
+
+        response = await self.make_request(
+            f"document/{document_id}/approve",
+            method="POST",
+            body=body
+        )
+
+        # If response is empty or just an ID, fetch the approved document
+        if not response or isinstance(response, str):
+            approved_document = await self.make_request(f"document/{document_id}")
+            return approved_document
+
+        return response
+
+    async def reverse_document(
+        self,
+        document_id: str,
+        reversal_date: str,
+        reversal_reason: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Reverse a posted document (creates reversing entry)
+
+        Args:
+            document_id: Document ID or reference to reverse
+            reversal_date: Reversal date (ISO format YYYY-MM-DD)
+            reversal_reason: Optional reason for reversal
+
+        Returns:
+            Reversal result with original and reversing document data
+
+        Raises:
+            ValueError: If document not posted or validation fails
+            FileNotFoundError: If document not found
+            PermissionError: For permission errors
+            RuntimeError: For other API errors
+        """
+        body = {
+            "reversalDate": reversal_date
+        }
+        if reversal_reason:
+            body["reason"] = reversal_reason
+
+        response = await self.make_request(
+            f"document/{document_id}/reverse",
+            method="POST",
+            body=body
+        )
+
+        # Response should include both original and reversing document
+        # If not, fetch the reversed document
+        if not response or isinstance(response, str):
+            reversed_document = await self.make_request(f"document/{document_id}")
+            return reversed_document
+
+        return response
+
+    async def create_resource(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generic create operation for any resource
+
+        Args:
+            endpoint: API endpoint (e.g., "department", "costcentre")
+            data: Resource data
+
+        Returns:
+            Created resource data
+        """
+        response = await self.make_request(
+            endpoint,
+            method="POST",
+            body=data
+        )
+        return response
+
+    async def update_resource(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generic update operation for any resource
+
+        Args:
+            endpoint: API endpoint with ID (e.g., "department/123" or "document/123/post")
+            data: Resource data to update
+
+        Returns:
+            Updated resource data
+        """
+        response = await self.make_request(
+            endpoint,
+            method="POST",  # Some operations use POST even for updates
+            body=data
+        )
+        return response

@@ -20,6 +20,15 @@ from .formatters import (
     format_payments,
     format_products,
     format_single_product,
+    # Phase 4: Organizational hierarchy & workflows
+    format_departments,
+    format_single_department,
+    format_cost_centres,
+    format_single_cost_centre,
+    format_posted_document,
+    format_approved_document,
+    format_reversed_document,
+    format_batch_payments,
 )
 from .models import (
     SearchDocumentsInput,
@@ -39,6 +48,15 @@ from .models import (
     SearchPaymentsInput,
     SearchProductsInput,
     GetProductInput,
+    # Phase 4: Organizational hierarchy & workflows
+    SearchDepartmentsInput,
+    GetDepartmentInput,
+    SearchCostCentresInput,
+    GetCostCentreInput,
+    PostDocumentInput,
+    ApproveDocumentInput,
+    ReverseDocumentInput,
+    SearchBatchPaymentsInput,
 )
 
 # Load environment variables
@@ -202,6 +220,73 @@ async def list_tools() -> list[Tool]:
             ),
             inputSchema=GetProductInput.model_json_schema(),
         ),
+
+        # ===== PHASE 4: ORGANIZATIONAL HIERARCHY & WORKFLOWS =====
+
+        Tool(
+            name="search_departments",
+            description=(
+                "Search for departments in iplicit. Filter by search term and active status. "
+                "Returns a list of departments with code, name, and status."
+            ),
+            inputSchema=SearchDepartmentsInput.model_json_schema(),
+        ),
+        Tool(
+            name="get_department",
+            description=(
+                "Get detailed information about a specific department by ID or code."
+            ),
+            inputSchema=GetDepartmentInput.model_json_schema(),
+        ),
+        Tool(
+            name="search_cost_centres",
+            description=(
+                "Search for cost centres in iplicit. Filter by search term and active status. "
+                "Returns a list of cost centres with code, name, and status."
+            ),
+            inputSchema=SearchCostCentresInput.model_json_schema(),
+        ),
+        Tool(
+            name="get_cost_centre",
+            description=(
+                "Get detailed information about a specific cost centre by ID or code."
+            ),
+            inputSchema=GetCostCentreInput.model_json_schema(),
+        ),
+        Tool(
+            name="post_document",
+            description=(
+                "Post a draft document to finalize it in the ledger. This is a critical operation "
+                "that changes the document status from draft to posted. Posted documents affect "
+                "financial reports and cannot be edited (only reversed). Use with caution."
+            ),
+            inputSchema=PostDocumentInput.model_json_schema(),
+        ),
+        Tool(
+            name="approve_document",
+            description=(
+                "Approve a document if approval workflow is enabled. This moves the document "
+                "to approved status, making it ready for posting."
+            ),
+            inputSchema=ApproveDocumentInput.model_json_schema(),
+        ),
+        Tool(
+            name="reverse_document",
+            description=(
+                "Reverse a posted document by creating a reversing entry. This is the correct "
+                "way to correct errors in posted documents. Creates both a reversal record and "
+                "a new reversing document."
+            ),
+            inputSchema=ReverseDocumentInput.model_json_schema(),
+        ),
+        Tool(
+            name="search_batch_payments",
+            description=(
+                "Search for batch payment records. Filter by date range and status. "
+                "Returns a list of batch payments with totals, item counts, and status."
+            ),
+            inputSchema=SearchBatchPaymentsInput.model_json_schema(),
+        ),
     ]
 
 
@@ -243,6 +328,25 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             result = await handle_search_products(client, arguments)
         elif name == "get_product":
             result = await handle_get_product(client, arguments)
+
+        # Phase 4: Organizational hierarchy & workflows
+        elif name == "search_departments":
+            result = await handle_search_departments(client, arguments)
+        elif name == "get_department":
+            result = await handle_get_department(client, arguments)
+        elif name == "search_cost_centres":
+            result = await handle_search_cost_centres(client, arguments)
+        elif name == "get_cost_centre":
+            result = await handle_get_cost_centre(client, arguments)
+        elif name == "post_document":
+            result = await handle_post_document(client, arguments)
+        elif name == "approve_document":
+            result = await handle_approve_document(client, arguments)
+        elif name == "reverse_document":
+            result = await handle_reverse_document(client, arguments)
+        elif name == "search_batch_payments":
+            result = await handle_search_batch_payments(client, arguments)
+
         else:
             raise ValueError(f"Unknown tool: {name}")
 
@@ -734,6 +838,235 @@ async def handle_get_product(client: IplicitAPIClient, args: dict) -> str:
         return format_response(response, "json")
     else:
         return format_single_product(response)
+
+
+# ===== PHASE 4: ORGANIZATIONAL HIERARCHY & WORKFLOWS =====
+
+
+async def handle_search_departments(client: IplicitAPIClient, args: dict) -> str:
+    """Handle search_departments tool"""
+    input_data = SearchDepartmentsInput(**args)
+
+    params = {"maxRecordCount": min(input_data.limit, 500)}
+
+    response = await client.make_request("department", params=params)
+    items = response if isinstance(response, list) else response.get("items", [])
+
+    # Client-side filter by search term
+    if input_data.search_term:
+        filtered = []
+        for item in items:
+            code = item.get("code", "").lower()
+            name = item.get("description", item.get("name", "")).lower()
+            if input_data.search_term.lower() in code or input_data.search_term.lower() in name:
+                filtered.append(item)
+        items = filtered
+
+    # Filter by active status
+    if input_data.active_only:
+        items = [item for item in items if item.get("active", True)]
+
+    items = items[:input_data.limit]
+
+    if input_data.format == "json":
+        return format_response({"items": items, "totalCount": len(items)}, "json")
+    else:
+        return format_departments(items, len(items))
+
+
+async def handle_get_department(client: IplicitAPIClient, args: dict) -> str:
+    """Handle get_department tool"""
+    input_data = GetDepartmentInput(**args)
+
+    # Try to get by ID first, then search by code if not a UUID
+    if len(input_data.department_id) == 36 and "-" in input_data.department_id:
+        # Looks like a UUID
+        dept = await client.make_request(f"department/{input_data.department_id}")
+    else:
+        # Search by code
+        response = await client.make_request("department", params={"maxRecordCount": 100})
+        items = response if isinstance(response, list) else response.get("items", [])
+
+        dept = None
+        for item in items:
+            if item.get("code") == input_data.department_id:
+                dept = item
+                break
+
+        if not dept:
+            return f"Department with code '{input_data.department_id}' not found."
+
+    if input_data.format == "json":
+        return format_response(dept, "json")
+    else:
+        return format_single_department(dept)
+
+
+async def handle_search_cost_centres(client: IplicitAPIClient, args: dict) -> str:
+    """Handle search_cost_centres tool"""
+    input_data = SearchCostCentresInput(**args)
+
+    params = {"maxRecordCount": min(input_data.limit, 500)}
+
+    response = await client.make_request("costcentre", params=params)
+    items = response if isinstance(response, list) else response.get("items", [])
+
+    # Client-side filter by search term
+    if input_data.search_term:
+        filtered = []
+        for item in items:
+            code = item.get("code", "").lower()
+            name = item.get("description", item.get("name", "")).lower()
+            if input_data.search_term.lower() in code or input_data.search_term.lower() in name:
+                filtered.append(item)
+        items = filtered
+
+    # Filter by active status
+    if input_data.active_only:
+        items = [item for item in items if item.get("active", True)]
+
+    items = items[:input_data.limit]
+
+    if input_data.format == "json":
+        return format_response({"items": items, "totalCount": len(items)}, "json")
+    else:
+        return format_cost_centres(items, len(items))
+
+
+async def handle_get_cost_centre(client: IplicitAPIClient, args: dict) -> str:
+    """Handle get_cost_centre tool"""
+    input_data = GetCostCentreInput(**args)
+
+    # Try to get by ID first, then search by code if not a UUID
+    if len(input_data.cost_centre_id) == 36 and "-" in input_data.cost_centre_id:
+        # Looks like a UUID
+        cc = await client.make_request(f"costcentre/{input_data.cost_centre_id}")
+    else:
+        # Search by code
+        response = await client.make_request("costcentre", params={"maxRecordCount": 100})
+        items = response if isinstance(response, list) else response.get("items", [])
+
+        cc = None
+        for item in items:
+            if item.get("code") == input_data.cost_centre_id:
+                cc = item
+                break
+
+        if not cc:
+            return f"Cost centre with code '{input_data.cost_centre_id}' not found."
+
+    if input_data.format == "json":
+        return format_response(cc, "json")
+    else:
+        return format_single_cost_centre(cc)
+
+
+async def handle_post_document(client: IplicitAPIClient, args: dict) -> str:
+    """Handle post_document tool"""
+    input_data = PostDocumentInput(**args)
+
+    try:
+        # Post the document
+        posted_doc = await client.post_document(
+            input_data.document_id,
+            input_data.posting_date
+        )
+
+        if input_data.format == "json":
+            return format_response(posted_doc, "json")
+        else:
+            return format_posted_document(posted_doc)
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "draft" in error_msg.lower():
+            return f"❌ Error: Document cannot be posted. {error_msg}\n\nOnly draft documents can be posted. Check the document status."
+        elif "validation" in error_msg.lower():
+            return f"❌ Validation Error: {error_msg}\n\nPlease fix the validation errors before posting."
+        else:
+            return f"❌ Error posting document: {error_msg}"
+    except FileNotFoundError:
+        return f"❌ Document '{input_data.document_id}' not found. Please check the document ID or reference."
+    except Exception as e:
+        return f"❌ Unexpected error posting document: {str(e)}"
+
+
+async def handle_approve_document(client: IplicitAPIClient, args: dict) -> str:
+    """Handle approve_document tool"""
+    input_data = ApproveDocumentInput(**args)
+
+    try:
+        # Approve the document
+        approved_doc = await client.approve_document(
+            input_data.document_id,
+            input_data.approval_note
+        )
+
+        if input_data.format == "json":
+            return format_response(approved_doc, "json")
+        else:
+            return format_approved_document(approved_doc)
+
+    except ValueError as e:
+        error_msg = str(e)
+        return f"❌ Error approving document: {error_msg}\n\nCheck the document status and approval workflow settings."
+    except FileNotFoundError:
+        return f"❌ Document '{input_data.document_id}' not found. Please check the document ID or reference."
+    except Exception as e:
+        return f"❌ Unexpected error approving document: {str(e)}"
+
+
+async def handle_reverse_document(client: IplicitAPIClient, args: dict) -> str:
+    """Handle reverse_document tool"""
+    input_data = ReverseDocumentInput(**args)
+
+    try:
+        # Reverse the document
+        reversal_result = await client.reverse_document(
+            input_data.document_id,
+            input_data.reversal_date,
+            input_data.reversal_reason
+        )
+
+        if input_data.format == "json":
+            return format_response(reversal_result, "json")
+        else:
+            return format_reversed_document(reversal_result)
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "posted" in error_msg.lower():
+            return f"❌ Error: Document cannot be reversed. {error_msg}\n\nOnly posted documents can be reversed."
+        else:
+            return f"❌ Error reversing document: {error_msg}"
+    except FileNotFoundError:
+        return f"❌ Document '{input_data.document_id}' not found. Please check the document ID or reference."
+    except Exception as e:
+        return f"❌ Unexpected error reversing document: {str(e)}"
+
+
+async def handle_search_batch_payments(client: IplicitAPIClient, args: dict) -> str:
+    """Handle search_batch_payments tool"""
+    input_data = SearchBatchPaymentsInput(**args)
+
+    params = {}
+    if input_data.from_date:
+        params["fromDate"] = input_data.from_date
+    if input_data.to_date:
+        params["toDate"] = input_data.to_date
+    if input_data.status:
+        params["status"] = input_data.status
+    params["maxRecordCount"] = min(input_data.limit, 500)
+
+    response = await client.make_request("batchpayment", params=params)
+    items = response if isinstance(response, list) else response.get("items", [])
+
+    items = items[:input_data.limit]
+
+    if input_data.format == "json":
+        return format_response({"items": items, "totalCount": len(items)}, "json")
+    else:
+        return format_batch_payments(items, len(items))
 
 
 def main():

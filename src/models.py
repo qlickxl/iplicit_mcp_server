@@ -529,3 +529,154 @@ class GetProductInput(BaseModel):
         default="markdown",
         description="Response format"
     )
+
+
+# ===== PHASE 4: ORGANIZATIONAL HIERARCHY & WORKFLOWS =====
+
+
+class SearchDepartmentsInput(BaseModel):
+    """Input schema for searching departments"""
+
+    search_term: Optional[str] = Field(
+        None,
+        description="Search by department code or name"
+    )
+    active_only: bool = Field(
+        default=True,
+        description="Show only active departments"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of results"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class GetDepartmentInput(BaseModel):
+    """Input schema for retrieving a specific department"""
+
+    department_id: str = Field(
+        description="Department ID or code"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class SearchCostCentresInput(BaseModel):
+    """Input schema for searching cost centres"""
+
+    search_term: Optional[str] = Field(
+        None,
+        description="Search by cost centre code or name"
+    )
+    active_only: bool = Field(
+        default=True,
+        description="Show only active cost centres"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of results"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class GetCostCentreInput(BaseModel):
+    """Input schema for retrieving a specific cost centre"""
+
+    cost_centre_id: str = Field(
+        description="Cost centre ID or code"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class PostDocumentInput(BaseModel):
+    """Input schema for posting a document"""
+
+    document_id: str = Field(
+        description="Document ID or reference to post"
+    )
+    posting_date: Optional[str] = Field(
+        None,
+        description="Posting date (ISO format: YYYY-MM-DD) - uses document date if not provided"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class ApproveDocumentInput(BaseModel):
+    """Input schema for approving a document"""
+
+    document_id: str = Field(
+        description="Document ID or reference to approve"
+    )
+    approval_note: Optional[str] = Field(
+        None,
+        description="Optional approval note/comment"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class ReverseDocumentInput(BaseModel):
+    """Input schema for reversing a posted document"""
+
+    document_id: str = Field(
+        description="Document ID or reference to reverse"
+    )
+    reversal_date: str = Field(
+        description="Reversal date (ISO format: YYYY-MM-DD)"
+    )
+    reversal_reason: Optional[str] = Field(
+        None,
+        description="Reason for reversal (optional but recommended)"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class SearchBatchPaymentsInput(BaseModel):
+    """Input schema for searching batch payments"""
+
+    from_date: Optional[str] = Field(
+        None,
+        description="Start date filter (ISO format: YYYY-MM-DD)"
+    )
+    to_date: Optional[str] = Field(
+        None,
+        description="End date filter (ISO format: YYYY-MM-DD)"
+    )
+    status: Optional[str] = Field(
+        None,
+        description="Filter by status (e.g., draft, posted)"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of results"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )

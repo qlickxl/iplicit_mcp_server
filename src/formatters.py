@@ -663,3 +663,189 @@ def format_single_product(product: Dict) -> str:
             md += f"- **Reorder Level:** {reorder_level}\n"
 
     return md
+
+
+# ===== PHASE 4: ORGANIZATIONAL HIERARCHY & WORKFLOWS =====
+
+
+def format_departments(items: List[Dict], total_count: int) -> str:
+    """Format departments list as markdown table"""
+    if not items:
+        return "No departments found."
+
+    md = f"## Departments\n\n"
+    md += f"Found **{len(items)}** departments"
+    if total_count > len(items):
+        md += f" (showing first {len(items)} of {total_count} total)"
+    md += "\n\n"
+
+    # Create table
+    md += "| Code | Name | Active |\n"
+    md += "|------|------|--------|\n"
+
+    for dept in items:
+        code = dept.get("code", "N/A")
+        name = dept.get("description", dept.get("name", "N/A"))
+        active = "Yes" if dept.get("active", True) else "No"
+        md += f"| {code} | {name} | {active} |\n"
+
+    return md
+
+
+def format_single_department(dept: Dict) -> str:
+    """Format single department with details"""
+    md = f"## Department Details\n\n"
+
+    code = dept.get("code", "N/A")
+    md += f"**Code:** {code}\n\n"
+
+    md += f"- **Name:** {dept.get('description', dept.get('name', 'N/A'))}\n"
+    md += f"- **Active:** {'Yes' if dept.get('active', True) else 'No'}\n"
+
+    # ID
+    if dept.get("id"):
+        md += f"- **ID:** {dept.get('id')}\n"
+
+    # Legal entity
+    legal_entity = dept.get("legalEntityDescription", dept.get("legalEntity"))
+    if legal_entity:
+        md += f"- **Legal Entity:** {legal_entity}\n"
+
+    return md
+
+
+def format_cost_centres(items: List[Dict], total_count: int) -> str:
+    """Format cost centres list as markdown table"""
+    if not items:
+        return "No cost centres found."
+
+    md = f"## Cost Centres\n\n"
+    md += f"Found **{len(items)}** cost centres"
+    if total_count > len(items):
+        md += f" (showing first {len(items)} of {total_count} total)"
+    md += "\n\n"
+
+    # Create table
+    md += "| Code | Name | Active |\n"
+    md += "|------|------|--------|\n"
+
+    for cc in items:
+        code = cc.get("code", "N/A")
+        name = cc.get("description", cc.get("name", "N/A"))
+        active = "Yes" if cc.get("active", True) else "No"
+        md += f"| {code} | {name} | {active} |\n"
+
+    return md
+
+
+def format_single_cost_centre(cc: Dict) -> str:
+    """Format single cost centre with details"""
+    md = f"## Cost Centre Details\n\n"
+
+    code = cc.get("code", "N/A")
+    md += f"**Code:** {code}\n\n"
+
+    md += f"- **Name:** {cc.get('description', cc.get('name', 'N/A'))}\n"
+    md += f"- **Active:** {'Yes' if cc.get('active', True) else 'No'}\n"
+
+    # ID
+    if cc.get("id"):
+        md += f"- **ID:** {cc.get('id')}\n"
+
+    # Legal entity
+    legal_entity = cc.get("legalEntityDescription", cc.get("legalEntity"))
+    if legal_entity:
+        md += f"- **Legal Entity:** {legal_entity}\n"
+
+    return md
+
+
+def format_posted_document(document: Dict) -> str:
+    """Format a posted document result"""
+    md = f"## Document Posted Successfully\n\n"
+
+    doc_no = document.get("docNo", document.get("number", "N/A"))
+    md += f"**Document:** {doc_no}\n\n"
+
+    md += f"- **Status:** {document.get('status', 'N/A')}\n"
+    md += f"- **Posted Date:** {_format_date(document.get('postedDate', document.get('docDate')))}\n"
+
+    doc_type = document.get("docClassDescription", document.get("docClass"))
+    if doc_type:
+        md += f"- **Type:** {doc_type}\n"
+
+    # Amounts
+    gross_amount = document.get("grossAmount", document.get("total"))
+    if gross_amount is not None:
+        md += f"- **Amount:** {_format_currency(gross_amount)}\n"
+
+    md += f"\n✅ Document has been posted to the ledger.\n"
+
+    return md
+
+
+def format_approved_document(document: Dict) -> str:
+    """Format an approved document result"""
+    md = f"## Document Approved Successfully\n\n"
+
+    doc_no = document.get("docNo", document.get("number", "N/A"))
+    md += f"**Document:** {doc_no}\n\n"
+
+    md += f"- **Status:** {document.get('status', 'N/A')}\n"
+    md += f"- **Approved Date:** {_format_date(document.get('approvedDate'))}\n"
+
+    doc_type = document.get("docClassDescription", document.get("docClass"))
+    if doc_type:
+        md += f"- **Type:** {doc_type}\n"
+
+    md += f"\n✅ Document has been approved and is ready for posting.\n"
+
+    return md
+
+
+def format_reversed_document(document: Dict, reversal_doc: Dict = None) -> str:
+    """Format a reversed document result"""
+    md = f"## Document Reversed Successfully\n\n"
+
+    doc_no = document.get("docNo", document.get("number", "N/A"))
+    md += f"**Original Document:** {doc_no}\n\n"
+
+    md += f"- **Status:** {document.get('status', 'N/A')}\n"
+    md += f"- **Reversal Date:** {_format_date(document.get('reversalDate'))}\n"
+
+    # Reversal document
+    if reversal_doc:
+        reversal_no = reversal_doc.get("docNo", reversal_doc.get("number", "N/A"))
+        md += f"\n**Reversing Document:** {reversal_no}\n"
+        md += f"- **Status:** {reversal_doc.get('status', 'N/A')}\n"
+
+    md += f"\n✅ Document has been reversed. A reversing entry has been created.\n"
+
+    return md
+
+
+def format_batch_payments(items: List[Dict], total_count: int) -> str:
+    """Format batch payments list as markdown table"""
+    if not items:
+        return "No batch payments found."
+
+    md = f"## Batch Payments\n\n"
+    md += f"Found **{len(items)}** batch payments"
+    if total_count > len(items):
+        md += f" (showing first {len(items)} of {total_count} total)"
+    md += "\n\n"
+
+    # Create table
+    md += "| Batch No | Date | Total Amount | Item Count | Status |\n"
+    md += "|----------|------|--------------|------------|--------|\n"
+
+    for batch in items:
+        batch_no = batch.get("batchNo", batch.get("number", "N/A"))
+        batch_date = _format_date(batch.get("batchDate", batch.get("date")))
+        total_amount = _format_currency(batch.get("totalAmount", batch.get("total", 0)))
+        item_count = batch.get("itemCount", batch.get("lineCount", "N/A"))
+        status = batch.get("status", "N/A")
+
+        md += f"| {batch_no} | {batch_date} | {total_amount} | {item_count} | {status} |\n"
+
+    return md

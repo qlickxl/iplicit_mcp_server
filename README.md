@@ -388,6 +388,158 @@ Get detailed information about a specific product.
 
 ---
 
+## Phase 4: Organizational Hierarchy & Document Workflows ⚠️
+
+**IMPORTANT:** Phase 4 includes document workflow operations (post, approve, reverse) that modify financial data and are irreversible. Use with extreme caution!
+
+### 16. search_departments
+
+Search for departments in your organization.
+
+**Parameters:**
+- `search_term` (optional): Search by department code or name
+- `active_only` (default: true): Show only active departments
+- `limit` (default: 50, max: 500): Maximum results
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Show me all active departments"
+"Find departments with 'Sales' in the name"
+```
+
+### 17. get_department
+
+Get detailed information about a specific department.
+
+**Parameters:**
+- `department_id` (required): Department ID or code
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Get details for department SALES"
+```
+
+### 18. search_cost_centres
+
+Search for cost centres in your organization.
+
+**Parameters:**
+- `search_term` (optional): Search by cost centre code or name
+- `active_only` (default: true): Show only active cost centres
+- `limit` (default: 50, max: 500): Maximum results
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Show me all cost centres"
+"Find cost centres for project tracking"
+```
+
+### 19. get_cost_centre
+
+Get detailed information about a specific cost centre.
+
+**Parameters:**
+- `cost_centre_id` (required): Cost centre ID or code
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Get details for cost centre CC-001"
+```
+
+### 20. post_document ⚠️⚠️⚠️
+
+**CRITICAL OPERATION:** Post a draft document to finalize it in the ledger. This operation:
+- Changes document status from draft to posted
+- Makes the document affect financial reports
+- Makes the document non-editable (can only be reversed)
+- **Cannot be undone** (except through reversal)
+
+**Use with extreme caution!**
+
+**Parameters:**
+- `document_id` (required): Document ID or reference to post
+- `posting_date` (optional): Posting date (YYYY-MM-DD) - uses document date if not provided
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Post draft invoice SIN000041"
+"Post document PIN000048 with posting date 2025-11-04"
+```
+
+**Returns:** Posted document with updated status and posting date
+
+**Important Notes:**
+- Only draft documents can be posted
+- Document must pass all validations
+- Once posted, document affects ledger balances
+- To correct posted documents, use reverse_document
+
+### 21. approve_document
+
+Approve a document if approval workflow is enabled. This moves the document to approved status, making it ready for posting.
+
+**Parameters:**
+- `document_id` (required): Document ID or reference to approve
+- `approval_note` (optional): Optional approval note/comment
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Approve document SIN000042"
+"Approve invoice PIN000049 with note 'Approved by finance manager'"
+```
+
+**Returns:** Approved document ready for posting
+
+### 22. reverse_document ⚠️⚠️
+
+**IMPORTANT OPERATION:** Reverse a posted document by creating a reversing entry. This is the correct way to correct errors in posted documents.
+
+**Parameters:**
+- `document_id` (required): Document ID or reference to reverse
+- `reversal_date` (required): Reversal date (YYYY-MM-DD)
+- `reversal_reason` (optional): Reason for reversal (recommended for audit trail)
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Reverse posted invoice SIN000040 on 2025-11-04 due to pricing error"
+```
+
+**Returns:** Reversal result with original and reversing document details
+
+**Important Notes:**
+- Only posted documents can be reversed
+- Creates a new reversing document
+- Both original and reversing documents remain in the system
+- Reversal affects ledger balances
+
+### 23. search_batch_payments
+
+Search for batch payment records.
+
+**Parameters:**
+- `from_date` (optional): Start date filter (YYYY-MM-DD)
+- `to_date` (optional): End date filter (YYYY-MM-DD)
+- `status` (optional): Filter by status (e.g., draft, posted)
+- `limit` (default: 50, max: 500): Maximum results
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Show me all batch payments from November"
+"Find posted batch payments"
+```
+
+**Returns:** List of batch payments with totals, item counts, and status
+
+---
+
 ## Troubleshooting
 
 ### Authentication Errors
@@ -488,24 +640,41 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-### Phase 1 (Current) ✅
+### Phase 1 ✅ (Completed)
 - [x] Read-only document search
 - [x] Contact account search and retrieval
 - [x] Project search
 - [x] Session management with auto-refresh
 - [x] Markdown and JSON formatting
 
-### Phase 2 (Planned)
-- [ ] Document creation (invoices, journals, etc.)
-- [ ] Document updates and posting
-- [ ] Financial reporting
-- [ ] Advanced filtering and aggregation
+### Phase 2 ✅ (Completed)
+- [x] Document creation (purchase and sales invoices)
+- [x] Document updates (draft documents)
+- [x] Smart defaults (auto-lookup of IDs)
+- [x] Comprehensive error handling
 
-### Phase 3 (Future)
-- [ ] Real-time webhooks
-- [ ] Data export and analysis
-- [ ] Batch operations
+### Phase 3 ✅ (Completed)
+- [x] Purchase order search and retrieval
+- [x] Sales order search and retrieval
+- [x] Payment search (received and made)
+- [x] Product catalog search and retrieval
+- [x] Advanced filtering and client-side search
+
+### Phase 4 ✅ (Completed - v1.0.0)
+- [x] Department and cost centre management
+- [x] Document workflow operations (post/approve/reverse)
+- [x] Batch payment search
+- [x] Complete document lifecycle support
+- [x] Production-ready error handling
+
+### Phase 5 (Future Enhancements)
+- [ ] Journal entry creation and management
+- [ ] Financial reporting (trial balance, P&L, balance sheet)
+- [ ] Real-time webhooks for document events
+- [ ] Data export and analysis tools
 - [ ] PyPI package publication
+- [ ] Bulk operations
+- [ ] Advanced analytics and reporting
 
 ## Acknowledgments
 
@@ -515,5 +684,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Version:** 0.1.0
+**Version:** 1.0.0
 **Last Updated:** November 4, 2025
