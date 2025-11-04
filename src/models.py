@@ -1,7 +1,8 @@
 """Pydantic models for iplicit MCP Server"""
 
-from typing import Optional, Literal
-from pydantic import BaseModel, Field
+from typing import Optional, Literal, List
+from pydantic import BaseModel, Field, field_validator
+from datetime import date
 
 
 class SearchDocumentsInput(BaseModel):
@@ -123,6 +124,214 @@ class SearchProjectsInput(BaseModel):
         le=500,
         description="Maximum number of results"
     )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+# ===== PHASE 2: WRITE OPERATIONS =====
+
+
+class InvoiceLineItem(BaseModel):
+    """Schema for invoice line item"""
+
+    description: str = Field(
+        description="Line item description"
+    )
+    quantity: float = Field(
+        default=1.0,
+        gt=0,
+        description="Quantity"
+    )
+    net_currency_unit_price: float = Field(
+        description="Unit price excluding tax"
+    )
+    tax_code_id: Optional[str] = Field(
+        None,
+        description="Tax code UUID (optional, will use default if not provided)"
+    )
+    account_id: Optional[str] = Field(
+        None,
+        description="General ledger account UUID (optional)"
+    )
+
+
+class CreatePurchaseInvoiceInput(BaseModel):
+    """Input schema for creating a purchase invoice"""
+
+    # Required fields
+    contact_account_id: str = Field(
+        description="Supplier contact account ID (UUID) or code - will lookup if code provided"
+    )
+    doc_date: str = Field(
+        description="Document date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+    )
+    due_date: str = Field(
+        description="Payment due date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+    )
+
+    # Optional fields with smart defaults
+    currency: str = Field(
+        default="GBP",
+        description="Currency code (e.g., GBP, USD, EUR)"
+    )
+    doc_type_id: Optional[str] = Field(
+        None,
+        description="Document type UUID (optional, will use default purchase invoice type if not provided)"
+    )
+    legal_entity_id: Optional[str] = Field(
+        None,
+        description="Legal entity UUID (optional, will use default if not provided)"
+    )
+
+    # Invoice details
+    description: Optional[str] = Field(
+        None,
+        description="Invoice description"
+    )
+    their_doc_no: Optional[str] = Field(
+        None,
+        description="Supplier's invoice number/reference"
+    )
+    payment_terms_id: Optional[str] = Field(
+        None,
+        description="Payment terms UUID (optional)"
+    )
+    project_id: Optional[str] = Field(
+        None,
+        description="Project UUID for project-based invoices (optional)"
+    )
+
+    # Line items
+    lines: Optional[List[InvoiceLineItem]] = Field(
+        None,
+        description="Invoice line items (optional for simple invoices)"
+    )
+
+    # Response format
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+    @field_validator('contact_account_id', 'doc_type_id', 'legal_entity_id', 'payment_terms_id', 'project_id')
+    @classmethod
+    def validate_uuid_or_code(cls, v):
+        """Allow UUIDs or codes for ID fields"""
+        if v is None:
+            return v
+        # Don't validate format - let the API handle it
+        return v
+
+
+class CreateSaleInvoiceInput(BaseModel):
+    """Input schema for creating a sales invoice"""
+
+    # Required fields
+    contact_account_id: str = Field(
+        description="Customer contact account ID (UUID) or code - will lookup if code provided"
+    )
+    doc_date: str = Field(
+        description="Document date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+    )
+    due_date: str = Field(
+        description="Payment due date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)"
+    )
+
+    # Optional fields with smart defaults
+    currency: str = Field(
+        default="GBP",
+        description="Currency code (e.g., GBP, USD, EUR)"
+    )
+    doc_type_id: Optional[str] = Field(
+        None,
+        description="Document type UUID (optional, will use default sales invoice type if not provided)"
+    )
+    legal_entity_id: Optional[str] = Field(
+        None,
+        description="Legal entity UUID (optional, will use default if not provided)"
+    )
+
+    # Invoice details
+    description: Optional[str] = Field(
+        None,
+        description="Invoice description"
+    )
+    reference: Optional[str] = Field(
+        None,
+        description="Invoice reference/number"
+    )
+    payment_terms_id: Optional[str] = Field(
+        None,
+        description="Payment terms UUID (optional)"
+    )
+    project_id: Optional[str] = Field(
+        None,
+        description="Project UUID for project-based invoices (optional)"
+    )
+
+    # Line items
+    lines: Optional[List[InvoiceLineItem]] = Field(
+        None,
+        description="Invoice line items (optional for simple invoices)"
+    )
+
+    # Response format
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+    @field_validator('contact_account_id', 'doc_type_id', 'legal_entity_id', 'payment_terms_id', 'project_id')
+    @classmethod
+    def validate_uuid_or_code(cls, v):
+        """Allow UUIDs or codes for ID fields"""
+        if v is None:
+            return v
+        # Don't validate format - let the API handle it
+        return v
+
+
+class UpdateDocumentInput(BaseModel):
+    """Input schema for updating an existing document"""
+
+    # Required field
+    document_id: str = Field(
+        description="Document ID (UUID) or reference number to update"
+    )
+
+    # Optional update fields (at least one must be provided)
+    description: Optional[str] = Field(
+        None,
+        description="Update document description"
+    )
+    their_doc_no: Optional[str] = Field(
+        None,
+        description="Update supplier/customer reference number"
+    )
+    reference: Optional[str] = Field(
+        None,
+        description="Update document reference"
+    )
+    doc_date: Optional[str] = Field(
+        None,
+        description="Update document date (ISO format: YYYY-MM-DD)"
+    )
+    due_date: Optional[str] = Field(
+        None,
+        description="Update due date (ISO format: YYYY-MM-DD)"
+    )
+    contact_account_id: Optional[str] = Field(
+        None,
+        description="Change contact account (UUID or code)"
+    )
+    lines: Optional[List[InvoiceLineItem]] = Field(
+        None,
+        description="Update line items (will replace existing lines)"
+    )
+
+    # Response format
     format: Literal["json", "markdown"] = Field(
         default="markdown",
         description="Response format"

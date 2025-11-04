@@ -8,13 +8,17 @@ from mcp.types import Tool, TextContent
 
 from .session import IplicitSessionManager
 from .api_client import IplicitAPIClient
-from .formatters import format_response
+from .formatters import format_response, format_created_invoice, format_updated_document
 from .models import (
     SearchDocumentsInput,
     GetDocumentInput,
     SearchContactAccountsInput,
     GetContactAccountInput,
     SearchProjectsInput,
+    # Phase 2: Write operations
+    CreatePurchaseInvoiceInput,
+    CreateSaleInvoiceInput,
+    UpdateDocumentInput,
 )
 
 # Load environment variables
@@ -86,6 +90,37 @@ async def list_tools() -> list[Tool]:
             ),
             inputSchema=SearchProjectsInput.model_json_schema(),
         ),
+        # Phase 2: Write operations
+        Tool(
+            name="create_purchase_invoice",
+            description=(
+                "Create a new purchase invoice (supplier invoice) in iplicit. "
+                "Requires contact account (supplier), document date, and due date. "
+                "Optionally include line items, description, and other details. "
+                "Returns the created invoice with document number and ID."
+            ),
+            inputSchema=CreatePurchaseInvoiceInput.model_json_schema(),
+        ),
+        Tool(
+            name="create_sale_invoice",
+            description=(
+                "Create a new sales invoice (customer invoice) in iplicit. "
+                "Requires contact account (customer), document date, and due date. "
+                "Optionally include line items, description, and other details. "
+                "Returns the created invoice with document number and ID."
+            ),
+            inputSchema=CreateSaleInvoiceInput.model_json_schema(),
+        ),
+        Tool(
+            name="update_document",
+            description=(
+                "Update an existing document in iplicit. IMPORTANT: Only draft documents "
+                "can be updated. Posted or approved documents cannot be modified. "
+                "Provide the document ID and the fields you want to update "
+                "(e.g., description, dates, line items). Returns the updated document details."
+            ),
+            inputSchema=UpdateDocumentInput.model_json_schema(),
+        ),
     ]
 
 
@@ -105,6 +140,13 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             result = await handle_get_contact_account(client, arguments)
         elif name == "search_projects":
             result = await handle_search_projects(client, arguments)
+        # Phase 2: Write operations
+        elif name == "create_purchase_invoice":
+            result = await handle_create_purchase_invoice(client, arguments)
+        elif name == "create_sale_invoice":
+            result = await handle_create_sale_invoice(client, arguments)
+        elif name == "update_document":
+            result = await handle_update_document(client, arguments)
         else:
             raise ValueError(f"Unknown tool: {name}")
 
@@ -279,6 +321,111 @@ async def handle_search_projects(client: IplicitAPIClient, args: dict) -> str:
     # Format response
     filtered_response = {"items": items, "totalCount": len(items)}
     return format_response(filtered_response, input_data.format, "projects")
+
+
+# ===== PHASE 2: WRITE OPERATION HANDLERS =====
+
+
+async def handle_create_purchase_invoice(client: IplicitAPIClient, args: dict) -> str:
+    """Handle create_purchase_invoice tool"""
+    input_data = CreatePurchaseInvoiceInput(**args)
+
+    # Convert input to dict for API client
+    data = {
+        "contactAccountId": input_data.contact_account_id,
+        "docDate": input_data.doc_date,
+        "dueDate": input_data.due_date,
+        "currency": input_data.currency,
+    }
+
+    # Optional fields
+    if input_data.doc_type_id:
+        data["docTypeId"] = input_data.doc_type_id
+    if input_data.legal_entity_id:
+        data["legalEntityId"] = input_data.legal_entity_id
+    if input_data.description:
+        data["description"] = input_data.description
+    if input_data.their_doc_no:
+        data["theirDocNo"] = input_data.their_doc_no
+    if input_data.payment_terms_id:
+        data["paymentTermsId"] = input_data.payment_terms_id
+    if input_data.project_id:
+        data["projectId"] = input_data.project_id
+    if input_data.lines:
+        # Convert Pydantic models to dicts
+        data["lines"] = [line.model_dump() for line in input_data.lines]
+
+    # Create invoice via API client
+    response = await client.create_purchase_invoice(data)
+
+    # Format and return response
+    return format_created_invoice(response, input_data.format)
+
+
+async def handle_create_sale_invoice(client: IplicitAPIClient, args: dict) -> str:
+    """Handle create_sale_invoice tool"""
+    input_data = CreateSaleInvoiceInput(**args)
+
+    # Convert input to dict for API client
+    data = {
+        "contactAccountId": input_data.contact_account_id,
+        "docDate": input_data.doc_date,
+        "dueDate": input_data.due_date,
+        "currency": input_data.currency,
+    }
+
+    # Optional fields
+    if input_data.doc_type_id:
+        data["docTypeId"] = input_data.doc_type_id
+    if input_data.legal_entity_id:
+        data["legalEntityId"] = input_data.legal_entity_id
+    if input_data.description:
+        data["description"] = input_data.description
+    if input_data.reference:
+        data["reference"] = input_data.reference
+    if input_data.payment_terms_id:
+        data["paymentTermsId"] = input_data.payment_terms_id
+    if input_data.project_id:
+        data["projectId"] = input_data.project_id
+    if input_data.lines:
+        # Convert Pydantic models to dicts
+        data["lines"] = [line.model_dump() for line in input_data.lines]
+
+    # Create invoice via API client
+    response = await client.create_sale_invoice(data)
+
+    # Format and return response
+    return format_created_invoice(response, input_data.format)
+
+
+async def handle_update_document(client: IplicitAPIClient, args: dict) -> str:
+    """Handle update_document tool"""
+    input_data = UpdateDocumentInput(**args)
+
+    # Build update data dict with only provided fields
+    data = {}
+
+    if input_data.description is not None:
+        data["description"] = input_data.description
+    if input_data.their_doc_no is not None:
+        data["theirDocNo"] = input_data.their_doc_no
+    if input_data.reference is not None:
+        data["reference"] = input_data.reference
+    if input_data.doc_date is not None:
+        data["docDate"] = input_data.doc_date
+    if input_data.due_date is not None:
+        data["dueDate"] = input_data.due_date
+    if input_data.contact_account_id is not None:
+        data["contactAccountId"] = input_data.contact_account_id
+    if input_data.lines is not None:
+        # Convert Pydantic models to dicts
+        data["lines"] = [line.model_dump() for line in input_data.lines]
+
+    # Update document via API client
+    response = await client.update_document(input_data.document_id, data)
+
+    # Format and return response
+    return format_updated_document(response, input_data.format)
 
 
 def main():

@@ -72,6 +72,8 @@ class IplicitAPIClient:
                         response = await client.post(url, headers=request_headers, json=body, params=params)
                     elif method == "PUT":
                         response = await client.put(url, headers=request_headers, json=body, params=params)
+                    elif method == "PATCH":
+                        response = await client.patch(url, headers=request_headers, json=body, params=params)
                     elif method == "DELETE":
                         response = await client.delete(url, headers=request_headers, params=params)
                     else:
@@ -193,3 +195,332 @@ class IplicitAPIClient:
                 await asyncio.sleep(wait_time)
                 self.request_count = 0
                 self.request_window_start = asyncio.get_event_loop().time()
+
+    # ===== PHASE 2: WRITE OPERATIONS =====
+
+    async def lookup_contact_by_code(self, code: str) -> Optional[str]:
+        """
+        Lookup contact account ID by code
+
+        Args:
+            code: Contact account code
+
+        Returns:
+            Contact account UUID or None if not found
+        """
+        try:
+            response = await self.make_request(
+                "contactaccount",
+                method="GET",
+                params={"maxRecordCount": 100}
+            )
+
+            items = response if isinstance(response, list) else response.get("items", [])
+
+            for contact in items:
+                if contact.get("code") == code:
+                    return contact.get("id")
+
+            return None
+        except Exception:
+            return None
+
+    async def get_default_legal_entity(self) -> Optional[str]:
+        """
+        Get the first available legal entity ID
+
+        Returns:
+            Legal entity UUID or None if not found
+        """
+        try:
+            response = await self.make_request(
+                "legalentity",
+                method="GET",
+                params={"maxRecordCount": 1}
+            )
+
+            items = response if isinstance(response, list) else response.get("items", [])
+
+            if items and len(items) > 0:
+                return items[0].get("id")
+
+            return None
+        except Exception:
+            return None
+
+    async def get_default_doc_type(self, doc_class: str) -> Optional[str]:
+        """
+        Get default document type ID for a document class
+
+        Args:
+            doc_class: Document class (e.g., "PurchaseInvoice", "SaleInvoice")
+
+        Returns:
+            Document type UUID or None if not found
+        """
+        try:
+            response = await self.make_request(
+                "purchaseinvoice" if doc_class == "PurchaseInvoice" else "saleinvoice",
+                method="GET",
+                params={"maxRecordCount": 1}
+            )
+
+            items = response if isinstance(response, list) else response.get("items", [])
+
+            if items and len(items) > 0:
+                return items[0].get("docTypeId")
+
+            return None
+        except Exception:
+            return None
+
+    async def create_purchase_invoice(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new purchase invoice
+
+        Args:
+            data: Invoice data including required fields:
+                  - contactAccountId or contact code
+                  - docDate
+                  - dueDate
+                  - currency (optional, defaults to GBP)
+                  - docTypeId (optional, will fetch default)
+                  - legalEntityId (optional, will fetch default)
+                  - description (optional)
+                  - theirDocNo (optional)
+                  - lines (optional)
+
+        Returns:
+            Created invoice data
+
+        Raises:
+            ValueError: For missing or invalid required fields
+            PermissionError: For permission errors
+            RuntimeError: For other API errors
+        """
+        # Prepare request body
+        body = {}
+
+        # Handle contact account (lookup by code if needed)
+        contact_id = data.get("contactAccountId")
+        if contact_id and len(contact_id) < 36:  # Not a UUID, try as code
+            looked_up_id = await self.lookup_contact_by_code(contact_id)
+            if looked_up_id:
+                contact_id = looked_up_id
+            else:
+                raise ValueError(f"Contact account with code '{contact_id}' not found")
+
+        body["contactAccountId"] = contact_id
+
+        # Handle doc type (use default if not provided)
+        doc_type_id = data.get("docTypeId")
+        if not doc_type_id:
+            doc_type_id = await self.get_default_doc_type("PurchaseInvoice")
+            if not doc_type_id:
+                raise ValueError(
+                    "Could not determine default document type. Please provide docTypeId."
+                )
+
+        body["docTypeId"] = doc_type_id
+
+        # Handle legal entity (use default if not provided)
+        legal_entity_id = data.get("legalEntityId")
+        if not legal_entity_id:
+            legal_entity_id = await self.get_default_legal_entity()
+            if not legal_entity_id:
+                raise ValueError(
+                    "Could not determine default legal entity. Please provide legalEntityId."
+                )
+
+        body["legalEntityId"] = legal_entity_id
+
+        # Required dates and currency
+        body["docDate"] = data["docDate"]
+        body["dueDate"] = data["dueDate"]
+        body["currency"] = data.get("currency", "GBP")
+
+        # Optional fields
+        if "description" in data:
+            body["description"] = data["description"]
+        if "theirDocNo" in data:
+            body["theirDocNo"] = data["theirDocNo"]
+        if "paymentTermsId" in data:
+            body["paymentTermsId"] = data["paymentTermsId"]
+        if "projectId" in data:
+            body["projectId"] = data["projectId"]
+        if "lines" in data:
+            body["details"] = data["lines"]  # API uses "details" not "lines"
+
+        # Make request
+        response = await self.make_request(
+            "purchaseinvoice",
+            method="POST",
+            body=body
+        )
+
+        # If response is just an ID string, fetch the full document
+        if isinstance(response, str):
+            document_id = response
+            # Fetch full document details
+            full_document = await self.make_request(f"purchaseinvoice/{document_id}")
+            return full_document
+
+        return response
+
+    async def create_sale_invoice(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new sales invoice
+
+        Args:
+            data: Invoice data including required fields:
+                  - contactAccountId or contact code
+                  - docDate
+                  - dueDate
+                  - currency (optional, defaults to GBP)
+                  - docTypeId (optional, will fetch default)
+                  - legalEntityId (optional, will fetch default)
+                  - description (optional)
+                  - reference (optional)
+                  - lines (optional)
+
+        Returns:
+            Created invoice data
+
+        Raises:
+            ValueError: For missing or invalid required fields
+            PermissionError: For permission errors
+            RuntimeError: For other API errors
+        """
+        # Prepare request body
+        body = {}
+
+        # Handle contact account (lookup by code if needed)
+        contact_id = data.get("contactAccountId")
+        if contact_id and len(contact_id) < 36:  # Not a UUID, try as code
+            looked_up_id = await self.lookup_contact_by_code(contact_id)
+            if looked_up_id:
+                contact_id = looked_up_id
+            else:
+                raise ValueError(f"Contact account with code '{contact_id}' not found")
+
+        body["contactAccountId"] = contact_id
+
+        # Handle doc type (use default if not provided)
+        doc_type_id = data.get("docTypeId")
+        if not doc_type_id:
+            doc_type_id = await self.get_default_doc_type("SaleInvoice")
+            if not doc_type_id:
+                raise ValueError(
+                    "Could not determine default document type. Please provide docTypeId."
+                )
+
+        body["docTypeId"] = doc_type_id
+
+        # Handle legal entity (use default if not provided)
+        legal_entity_id = data.get("legalEntityId")
+        if not legal_entity_id:
+            legal_entity_id = await self.get_default_legal_entity()
+            if not legal_entity_id:
+                raise ValueError(
+                    "Could not determine default legal entity. Please provide legalEntityId."
+                )
+
+        body["legalEntityId"] = legal_entity_id
+
+        # Required dates and currency
+        body["docDate"] = data["docDate"]
+        body["dueDate"] = data["dueDate"]
+        body["currency"] = data.get("currency", "GBP")
+
+        # Optional fields
+        if "description" in data:
+            body["description"] = data["description"]
+        if "reference" in data:
+            body["reference"] = data["reference"]
+        if "paymentTermsId" in data:
+            body["paymentTermsId"] = data["paymentTermsId"]
+        if "projectId" in data:
+            body["projectId"] = data["projectId"]
+        if "lines" in data:
+            body["details"] = data["lines"]  # API uses "details" not "lines"
+
+        # Make request
+        response = await self.make_request(
+            "saleinvoice",
+            method="POST",
+            body=body
+        )
+
+        # If response is just an ID string, fetch the full document
+        if isinstance(response, str):
+            document_id = response
+            # Fetch full document details
+            full_document = await self.make_request(f"saleinvoice/{document_id}")
+            return full_document
+
+        return response
+
+    async def update_document(self, document_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an existing document (draft status only)
+
+        Args:
+            document_id: Document ID or reference
+            data: Fields to update (at least one required):
+                  - description
+                  - theirDocNo or reference
+                  - docDate
+                  - dueDate
+                  - contactAccountId
+                  - lines
+
+        Returns:
+            Updated document data
+
+        Raises:
+            ValueError: For missing or invalid fields, or document not in draft status
+            FileNotFoundError: If document not found
+            PermissionError: For permission errors
+            RuntimeError: For other API errors
+        """
+        # Prepare request body with only provided fields
+        body = {}
+
+        if "description" in data:
+            body["description"] = data["description"]
+        if "theirDocNo" in data:
+            body["theirDocNo"] = data["theirDocNo"]
+        if "reference" in data:
+            body["reference"] = data["reference"]
+        if "docDate" in data:
+            body["docDate"] = data["docDate"]
+        if "dueDate" in data:
+            body["dueDate"] = data["dueDate"]
+        if "contactAccountId" in data:
+            # Handle contact code lookup
+            contact_id = data["contactAccountId"]
+            if contact_id and len(contact_id) < 36:  # Not a UUID
+                looked_up_id = await self.lookup_contact_by_code(contact_id)
+                if looked_up_id:
+                    contact_id = looked_up_id
+            body["contactAccountId"] = contact_id
+        if "lines" in data:
+            body["details"] = data["lines"]  # API uses "details" not "lines"
+
+        if not body:
+            raise ValueError("At least one field must be provided to update")
+
+        # Make request (using PATCH method)
+        response = await self.make_request(
+            f"document/{document_id}",
+            method="PATCH",
+            body=body
+        )
+
+        # If response is empty (204 No Content), fetch the updated document
+        if not response or response == {} or (isinstance(response, dict) and "raw_response" in response and response["raw_response"] == ""):
+            # Fetch the updated document
+            updated_document = await self.make_request(f"document/{document_id}")
+            return updated_document
+
+        return response

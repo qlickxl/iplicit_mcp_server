@@ -261,3 +261,161 @@ def _format_currency(amount: Any, currency: str = "£") -> str:
         return f"{currency}{amount_float:,.2f}"
     except (ValueError, TypeError):
         return str(amount)
+
+
+# ===== PHASE 2: WRITE OPERATIONS FORMATTERS =====
+
+
+def format_created_invoice(invoice: Dict, format_type: str) -> str:
+    """
+    Format a newly created invoice response
+
+    Args:
+        invoice: Created invoice data from API
+        format_type: "json" or "markdown"
+
+    Returns:
+        Formatted string
+    """
+    if format_type == "json":
+        return json.dumps(invoice, indent=2, default=str)
+
+    # Markdown formatting
+    md = "## ✅ Invoice Created Successfully\n\n"
+
+    # Key info
+    doc_class = invoice.get("docClass", "Invoice")
+    doc_no = invoice.get("docNo", "N/A")
+    doc_id = invoice.get("id", "N/A")
+
+    md += f"**{doc_class}:** {doc_no}\n\n"
+
+    # Details
+    md += "### Details\n\n"
+    md += f"- **Document ID:** `{doc_id}`\n"
+    md += f"- **Document Number:** {doc_no}\n"
+    md += f"- **Date:** {_format_date(invoice.get('docDate'))}\n"
+    md += f"- **Due Date:** {_format_date(invoice.get('dueDate'))}\n"
+    md += f"- **Contact:** {invoice.get('contactAccountDescription', 'N/A')}\n"
+    md += f"- **Currency:** {invoice.get('currency', 'N/A')}\n"
+    md += f"- **Status:** {invoice.get('status', 'draft')}\n"
+
+    if invoice.get("description"):
+        md += f"- **Description:** {invoice['description']}\n"
+
+    # Amounts
+    net = invoice.get("netAmount", invoice.get("netCurrencyAmount"))
+    tax = invoice.get("taxAmount", invoice.get("taxCurrencyAmount"))
+    gross = invoice.get("grossAmount", invoice.get("grossCurrencyAmount"))
+
+    if net is not None or tax is not None or gross is not None:
+        md += "\n### Amounts\n\n"
+        if net is not None:
+            md += f"- **Net:** {_format_currency(net)}\n"
+        if tax is not None:
+            md += f"- **Tax:** {_format_currency(tax)}\n"
+        if gross is not None:
+            md += f"- **Gross Total:** {_format_currency(gross)}\n"
+
+    # Line items
+    lines = invoice.get("details", invoice.get("lines", []))
+    if lines:
+        md += f"\n### Line Items ({len(lines)})\n\n"
+        md += "| Description | Quantity | Unit Price | Amount |\n"
+        md += "|-------------|----------|------------|--------|\n"
+
+        for line in lines:
+            desc = line.get("description", "N/A")
+            qty = line.get("quantity", 1)
+            price = _format_currency(line.get("netCurrencyUnitPrice", line.get("unitPrice")))
+            line_net = line.get("netAmount", line.get("netCurrencyAmount"))
+            amount = _format_currency(line_net)
+            md += f"| {desc} | {qty} | {price} | {amount} |\n"
+
+    # Next steps
+    md += "\n### Next Steps\n\n"
+    if invoice.get("status", "").lower() == "draft":
+        md += "This invoice is in **draft** status. You can:\n"
+        md += "- Update it using the `update_document` tool\n"
+        md += "- Post it to finalize the transaction (when posting feature is available)\n"
+    else:
+        md += f"Invoice status: **{invoice.get('status')}**\n"
+
+    return md
+
+
+def format_updated_document(document: Dict, format_type: str) -> str:
+    """
+    Format an updated document response
+
+    Args:
+        document: Updated document data from API
+        format_type: "json" or "markdown"
+
+    Returns:
+        Formatted string
+    """
+    if format_type == "json":
+        return json.dumps(document, indent=2, default=str)
+
+    # Markdown formatting
+    md = "## ✅ Document Updated Successfully\n\n"
+
+    # Key info
+    doc_class = document.get("docClass", "Document")
+    doc_no = document.get("docNo", document.get("number", "N/A"))
+    doc_id = document.get("id", "N/A")
+
+    md += f"**{doc_class}:** {doc_no}\n\n"
+
+    # Details
+    md += "### Updated Details\n\n"
+    md += f"- **Document ID:** `{doc_id}`\n"
+    md += f"- **Document Number:** {doc_no}\n"
+    md += f"- **Date:** {_format_date(document.get('docDate'))}\n"
+    md += f"- **Due Date:** {_format_date(document.get('dueDate'))}\n"
+    md += f"- **Contact:** {document.get('contactAccountDescription', 'N/A')}\n"
+    md += f"- **Status:** {document.get('status', 'N/A')}\n"
+
+    if document.get("description"):
+        md += f"- **Description:** {document['description']}\n"
+
+    if document.get("theirDocNo"):
+        md += f"- **Their Reference:** {document['theirDocNo']}\n"
+
+    # Modification tracking
+    if document.get("lastModified"):
+        md += f"- **Last Modified:** {_format_date(document.get('lastModified'))}\n"
+    if document.get("lastModifiedBy"):
+        md += f"- **Modified By:** {document.get('lastModifiedBy')}\n"
+
+    # Amounts
+    net = document.get("netAmount", document.get("netCurrencyAmount"))
+    tax = document.get("taxAmount", document.get("taxCurrencyAmount"))
+    gross = document.get("grossAmount", document.get("grossCurrencyAmount"))
+
+    if net is not None or tax is not None or gross is not None:
+        md += "\n### Amounts\n\n"
+        if net is not None:
+            md += f"- **Net:** {_format_currency(net)}\n"
+        if tax is not None:
+            md += f"- **Tax:** {_format_currency(tax)}\n"
+        if gross is not None:
+            md += f"- **Gross Total:** {_format_currency(gross)}\n"
+
+    # Line items if present
+    lines = document.get("details", document.get("lines", []))
+    if lines:
+        md += f"\n### Line Items ({len(lines)})\n\n"
+        md += "| Description | Quantity | Unit Price | Amount |\n"
+        md += "|-------------|----------|------------|--------|\n"
+
+        for line in lines:
+            desc = line.get("description", "N/A")
+            qty = line.get("quantity", 1)
+            price = _format_currency(line.get("netCurrencyUnitPrice", line.get("unitPrice")))
+            line_net = line.get("netAmount", line.get("netCurrencyAmount"))
+            amount = _format_currency(line_net)
+            md += f"| {desc} | {qty} | {price} | {amount} |\n"
+
+    return md

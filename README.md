@@ -187,6 +187,88 @@ Search for projects.
 - `limit` (default: 50): Maximum results
 - `format` (default: "markdown"): Output format
 
+---
+
+## Phase 2: Write Operations ⚠️
+
+**IMPORTANT:** Phase 2 tools create and modify real financial data. Use with caution!
+
+### 6. create_purchase_invoice
+
+Create a new purchase invoice (supplier invoice).
+
+**Parameters:**
+- `contact_account_id` (required): Supplier contact ID or code (auto-resolves codes to UUIDs)
+- `doc_date` (required): Document date (YYYY-MM-DD)
+- `due_date` (required): Payment due date (YYYY-MM-DD)
+- `currency` (default: "GBP"): Currency code
+- `doc_type_id` (optional): Document type UUID (auto-fetched if not provided)
+- `legal_entity_id` (optional): Legal entity UUID (auto-fetched if not provided)
+- `description` (optional): Invoice description
+- `their_doc_no` (optional): Supplier's invoice number
+- `payment_terms_id` (optional): Payment terms UUID
+- `project_id` (optional): Project UUID
+- `lines` (optional): Array of line items with: description, quantity, net_currency_unit_price, tax_code_id, account_id
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Create a purchase invoice for supplier B023 for £1,500 due in 30 days"
+```
+
+**Returns:** Created invoice with document number, ID, and full details
+
+### 7. create_sale_invoice
+
+Create a new sales invoice (customer invoice).
+
+**Parameters:**
+- `contact_account_id` (required): Customer contact ID or code (auto-resolves codes to UUIDs)
+- `doc_date` (required): Document date (YYYY-MM-DD)
+- `due_date` (required): Payment due date (YYYY-MM-DD)
+- `currency` (default: "GBP"): Currency code
+- `doc_type_id` (optional): Document type UUID (auto-fetched if not provided)
+- `legal_entity_id` (optional): Legal entity UUID (auto-fetched if not provided)
+- `description` (optional): Invoice description
+- `reference` (optional): Invoice reference number
+- `payment_terms_id` (optional): Payment terms UUID
+- `project_id` (optional): Project UUID
+- `lines` (optional): Array of line items
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Create a sales invoice for customer 10723 for £2,400 for consulting services"
+```
+
+**Returns:** Created invoice with document number, ID, and full details
+
+### 8. update_document
+
+Update an existing document. **IMPORTANT:** Only draft documents can be updated. Posted/approved documents will be rejected.
+
+**Parameters:**
+- `document_id` (required): Document ID or reference number
+- `description` (optional): Update description
+- `their_doc_no` (optional): Update supplier/customer reference
+- `reference` (optional): Update document reference
+- `doc_date` (optional): Update document date (YYYY-MM-DD)
+- `due_date` (optional): Update due date (YYYY-MM-DD)
+- `contact_account_id` (optional): Change contact account (ID or code)
+- `lines` (optional): Update line items (replaces existing)
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Update invoice PIN000048 to change the description to 'Office supplies Q4'"
+```
+
+**Returns:** Updated document with modification tracking
+
+**Note:** At least one field must be provided to update.
+
+---
+
 ## Troubleshooting
 
 ### Authentication Errors
