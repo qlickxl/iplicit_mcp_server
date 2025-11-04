@@ -269,6 +269,125 @@ Update an existing document. **IMPORTANT:** Only draft documents can be updated.
 
 ---
 
+## Phase 3: Orders, Payments & Products
+
+### 9. search_purchase_orders
+
+Search for purchase orders with flexible filtering.
+
+**Parameters:**
+- `status` (optional): Filter by status (draft, approved, outstanding, posted)
+- `supplier` (optional): Filter by supplier name or code
+- `from_date` (optional): Start date (YYYY-MM-DD)
+- `to_date` (optional): End date (YYYY-MM-DD)
+- `project_id` (optional): Filter by project
+- `limit` (default: 50, max: 500): Maximum results
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Show me all outstanding purchase orders"
+"Find purchase orders for supplier B023"
+```
+
+### 10. get_purchase_order
+
+Get detailed information about a specific purchase order.
+
+**Parameters:**
+- `order_id` (required): Purchase order ID or reference
+- `include_details` (default: true): Include line items
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Get details for purchase order PO000123"
+```
+
+### 11. search_sale_orders
+
+Search for sales orders with filtering options.
+
+**Parameters:**
+- `status` (optional): Filter by status
+- `customer` (optional): Filter by customer name or code
+- `from_date` (optional): Start date (YYYY-MM-DD)
+- `to_date` (optional): End date (YYYY-MM-DD)
+- `project_id` (optional): Filter by project
+- `limit` (default: 50, max: 500): Maximum results
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Show me sales orders for customer 10723"
+```
+
+### 12. get_sale_order
+
+Get detailed information about a specific sales order.
+
+**Parameters:**
+- `order_id` (required): Sales order ID or reference
+- `include_details` (default: true): Include line items
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Get details for sales order SO000456"
+```
+
+### 13. search_payments
+
+Search payment transactions (received and made).
+
+**Parameters:**
+- `payment_type` (default: "all"): "received", "made", or "all"
+- `from_date` (optional): Start date (YYYY-MM-DD)
+- `to_date` (optional): End date (YYYY-MM-DD)
+- `contact` (optional): Filter by customer/supplier
+- `min_amount` (optional): Minimum amount
+- `max_amount` (optional): Maximum amount
+- `limit` (default: 50, max: 500): Maximum results
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Show me all payments received in November"
+```
+
+### 14. search_products
+
+Search the product catalog.
+
+**Parameters:**
+- `search_term` (optional): Search by code or description
+- `active_only` (default: true): Show only active products
+- `product_type` (optional): Filter by product type
+- `limit` (default: 50, max: 500): Maximum results
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Show me all active products with 'Office' in the description"
+```
+
+### 15. get_product
+
+Get detailed information about a specific product.
+
+**Parameters:**
+- `product_id` (required): Product ID or code
+- `include_pricing` (default: true): Include pricing info
+- `include_stock` (default: true): Include stock levels
+- `format` (default: "markdown"): Output format
+
+**Example:**
+```
+"Get details for product PROD-001"
+```
+
+---
+
 ## Troubleshooting
 
 ### Authentication Errors

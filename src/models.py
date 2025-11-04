@@ -336,3 +336,196 @@ class UpdateDocumentInput(BaseModel):
         default="markdown",
         description="Response format"
     )
+
+
+# ===== PHASE 3: ADDITIONAL READ OPERATIONS =====
+
+
+class SearchPurchaseOrdersInput(BaseModel):
+    """Input schema for searching purchase orders"""
+
+    status: Optional[str] = Field(
+        None,
+        description="Filter by status (e.g., draft, approved, outstanding, posted)"
+    )
+    supplier: Optional[str] = Field(
+        None,
+        description="Filter by supplier name or code"
+    )
+    from_date: Optional[str] = Field(
+        None,
+        description="Start date filter (ISO format: YYYY-MM-DD)"
+    )
+    to_date: Optional[str] = Field(
+        None,
+        description="End date filter (ISO format: YYYY-MM-DD)"
+    )
+    project_id: Optional[str] = Field(
+        None,
+        description="Filter by project ID"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of results"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class GetPurchaseOrderInput(BaseModel):
+    """Input schema for retrieving a specific purchase order"""
+
+    order_id: str = Field(
+        description="Purchase order ID or reference"
+    )
+    include_details: bool = Field(
+        default=True,
+        description="Include line item details"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class SearchSaleOrdersInput(BaseModel):
+    """Input schema for searching sales orders"""
+
+    status: Optional[str] = Field(
+        None,
+        description="Filter by status (e.g., draft, approved, outstanding, posted)"
+    )
+    customer: Optional[str] = Field(
+        None,
+        description="Filter by customer name or code"
+    )
+    from_date: Optional[str] = Field(
+        None,
+        description="Start date filter (ISO format: YYYY-MM-DD)"
+    )
+    to_date: Optional[str] = Field(
+        None,
+        description="End date filter (ISO format: YYYY-MM-DD)"
+    )
+    project_id: Optional[str] = Field(
+        None,
+        description="Filter by project ID"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of results"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class GetSaleOrderInput(BaseModel):
+    """Input schema for retrieving a specific sales order"""
+
+    order_id: str = Field(
+        description="Sales order ID or reference"
+    )
+    include_details: bool = Field(
+        default=True,
+        description="Include line item details"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class SearchPaymentsInput(BaseModel):
+    """Input schema for searching payments"""
+
+    payment_type: Optional[Literal["received", "made", "all"]] = Field(
+        default="all",
+        description="Type of payment: received (from customers), made (to suppliers), or all"
+    )
+    from_date: Optional[str] = Field(
+        None,
+        description="Start date filter (ISO format: YYYY-MM-DD)"
+    )
+    to_date: Optional[str] = Field(
+        None,
+        description="End date filter (ISO format: YYYY-MM-DD)"
+    )
+    contact: Optional[str] = Field(
+        None,
+        description="Filter by customer/supplier name or code"
+    )
+    min_amount: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Minimum payment amount"
+    )
+    max_amount: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Maximum payment amount"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of results"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class SearchProductsInput(BaseModel):
+    """Input schema for searching products"""
+
+    search_term: Optional[str] = Field(
+        None,
+        description="Search by product code or description"
+    )
+    active_only: bool = Field(
+        default=True,
+        description="Show only active products"
+    )
+    product_type: Optional[str] = Field(
+        None,
+        description="Filter by product type"
+    )
+    limit: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of results"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )
+
+
+class GetProductInput(BaseModel):
+    """Input schema for retrieving a specific product"""
+
+    product_id: str = Field(
+        description="Product ID or code"
+    )
+    include_pricing: bool = Field(
+        default=True,
+        description="Include pricing information"
+    )
+    include_stock: bool = Field(
+        default=True,
+        description="Include stock level information"
+    )
+    format: Literal["json", "markdown"] = Field(
+        default="markdown",
+        description="Response format"
+    )

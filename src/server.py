@@ -8,7 +8,19 @@ from mcp.types import Tool, TextContent
 
 from .session import IplicitSessionManager
 from .api_client import IplicitAPIClient
-from .formatters import format_response, format_created_invoice, format_updated_document
+from .formatters import (
+    format_response,
+    format_created_invoice,
+    format_updated_document,
+    # Phase 3: Additional formatters
+    format_purchase_orders,
+    format_single_purchase_order,
+    format_sale_orders,
+    format_single_sale_order,
+    format_payments,
+    format_products,
+    format_single_product,
+)
 from .models import (
     SearchDocumentsInput,
     GetDocumentInput,
@@ -19,6 +31,14 @@ from .models import (
     CreatePurchaseInvoiceInput,
     CreateSaleInvoiceInput,
     UpdateDocumentInput,
+    # Phase 3: Additional read operations
+    SearchPurchaseOrdersInput,
+    GetPurchaseOrderInput,
+    SearchSaleOrdersInput,
+    GetSaleOrderInput,
+    SearchPaymentsInput,
+    SearchProductsInput,
+    GetProductInput,
 )
 
 # Load environment variables
@@ -121,6 +141,67 @@ async def list_tools() -> list[Tool]:
             ),
             inputSchema=UpdateDocumentInput.model_json_schema(),
         ),
+        # Phase 3: Additional read operations
+        Tool(
+            name="search_purchase_orders",
+            description=(
+                "Search for purchase orders in iplicit. Filter by status, supplier, "
+                "date range, or project. Returns a list of purchase orders with key details "
+                "(PO number, supplier, date, amount, status)."
+            ),
+            inputSchema=SearchPurchaseOrdersInput.model_json_schema(),
+        ),
+        Tool(
+            name="get_purchase_order",
+            description=(
+                "Get detailed information about a specific purchase order by ID or reference. "
+                "Includes line items, delivery information, and approval status."
+            ),
+            inputSchema=GetPurchaseOrderInput.model_json_schema(),
+        ),
+        Tool(
+            name="search_sale_orders",
+            description=(
+                "Search for sales orders in iplicit. Filter by status, customer, "
+                "date range, or project. Returns a list of sales orders with key details "
+                "(SO number, customer, date, amount, status)."
+            ),
+            inputSchema=SearchSaleOrdersInput.model_json_schema(),
+        ),
+        Tool(
+            name="get_sale_order",
+            description=(
+                "Get detailed information about a specific sales order by ID or reference. "
+                "Includes line items, delivery dates, and invoicing status."
+            ),
+            inputSchema=GetSaleOrderInput.model_json_schema(),
+        ),
+        Tool(
+            name="search_payments",
+            description=(
+                "Search payment transactions (both received from customers and made to suppliers). "
+                "Filter by payment type, date range, contact, or amount. "
+                "Returns a list of payments with amount, date, contact, and reference."
+            ),
+            inputSchema=SearchPaymentsInput.model_json_schema(),
+        ),
+        Tool(
+            name="search_products",
+            description=(
+                "Search the product catalog in iplicit. Filter by product code, description, "
+                "active status, or product type. Returns a list of products with code, "
+                "description, price, and active status."
+            ),
+            inputSchema=SearchProductsInput.model_json_schema(),
+        ),
+        Tool(
+            name="get_product",
+            description=(
+                "Get detailed information about a specific product by ID or code. "
+                "Includes pricing information, stock levels, dimensions, and supplier details."
+            ),
+            inputSchema=GetProductInput.model_json_schema(),
+        ),
     ]
 
 
@@ -147,6 +228,21 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             result = await handle_create_sale_invoice(client, arguments)
         elif name == "update_document":
             result = await handle_update_document(client, arguments)
+        # Phase 3: Additional read operations
+        elif name == "search_purchase_orders":
+            result = await handle_search_purchase_orders(client, arguments)
+        elif name == "get_purchase_order":
+            result = await handle_get_purchase_order(client, arguments)
+        elif name == "search_sale_orders":
+            result = await handle_search_sale_orders(client, arguments)
+        elif name == "get_sale_order":
+            result = await handle_get_sale_order(client, arguments)
+        elif name == "search_payments":
+            result = await handle_search_payments(client, arguments)
+        elif name == "search_products":
+            result = await handle_search_products(client, arguments)
+        elif name == "get_product":
+            result = await handle_get_product(client, arguments)
         else:
             raise ValueError(f"Unknown tool: {name}")
 
@@ -426,6 +522,218 @@ async def handle_update_document(client: IplicitAPIClient, args: dict) -> str:
 
     # Format and return response
     return format_updated_document(response, input_data.format)
+
+
+# ===== PHASE 3: ADDITIONAL READ OPERATION HANDLERS =====
+
+
+async def handle_search_purchase_orders(client: IplicitAPIClient, args: dict) -> str:
+    """Handle search_purchase_orders tool"""
+    input_data = SearchPurchaseOrdersInput(**args)
+
+    # Build query parameters
+    params = {}
+    if input_data.from_date:
+        params["fromDate"] = input_data.from_date
+    if input_data.to_date:
+        params["toDate"] = input_data.to_date
+    if input_data.status:
+        params["status"] = input_data.status
+    if input_data.project_id:
+        params["projectId"] = input_data.project_id
+
+    params["maxRecordCount"] = min(input_data.limit, 500)
+
+    # Make API request
+    response = await client.make_request("purchaseorder", params=params)
+
+    # Handle response format
+    items = response if isinstance(response, list) else response.get("items", [])
+
+    # Client-side filter by supplier if provided
+    if input_data.supplier:
+        filtered = []
+        for item in items:
+            supplier = item.get("contactAccountDescription", item.get("supplier", ""))
+            if input_data.supplier.lower() in supplier.lower():
+                filtered.append(item)
+        items = filtered
+
+    # Apply limit
+    items = items[:input_data.limit]
+
+    # Format response
+    if input_data.format == "json":
+        return format_response({"items": items, "totalCount": len(items)}, "json")
+    else:
+        return format_purchase_orders(items, len(items))
+
+
+async def handle_get_purchase_order(client: IplicitAPIClient, args: dict) -> str:
+    """Handle get_purchase_order tool"""
+    input_data = GetPurchaseOrderInput(**args)
+
+    # Get purchase order by ID
+    response = await client.make_request(f"purchaseorder/{input_data.order_id}")
+
+    # Format response
+    if input_data.format == "json":
+        return format_response(response, "json")
+    else:
+        return format_single_purchase_order(response)
+
+
+async def handle_search_sale_orders(client: IplicitAPIClient, args: dict) -> str:
+    """Handle search_sale_orders tool"""
+    input_data = SearchSaleOrdersInput(**args)
+
+    # Build query parameters
+    params = {}
+    if input_data.from_date:
+        params["fromDate"] = input_data.from_date
+    if input_data.to_date:
+        params["toDate"] = input_data.to_date
+    if input_data.status:
+        params["status"] = input_data.status
+    if input_data.project_id:
+        params["projectId"] = input_data.project_id
+
+    params["maxRecordCount"] = min(input_data.limit, 500)
+
+    # Make API request
+    response = await client.make_request("saleorder", params=params)
+
+    # Handle response format
+    items = response if isinstance(response, list) else response.get("items", [])
+
+    # Client-side filter by customer if provided
+    if input_data.customer:
+        filtered = []
+        for item in items:
+            customer = item.get("contactAccountDescription", item.get("customer", ""))
+            if input_data.customer.lower() in customer.lower():
+                filtered.append(item)
+        items = filtered
+
+    # Apply limit
+    items = items[:input_data.limit]
+
+    # Format response
+    if input_data.format == "json":
+        return format_response({"items": items, "totalCount": len(items)}, "json")
+    else:
+        return format_sale_orders(items, len(items))
+
+
+async def handle_get_sale_order(client: IplicitAPIClient, args: dict) -> str:
+    """Handle get_sale_order tool"""
+    input_data = GetSaleOrderInput(**args)
+
+    # Get sale order by ID
+    response = await client.make_request(f"saleorder/{input_data.order_id}")
+
+    # Format response
+    if input_data.format == "json":
+        return format_response(response, "json")
+    else:
+        return format_single_sale_order(response)
+
+
+async def handle_search_payments(client: IplicitAPIClient, args: dict) -> str:
+    """Handle search_payments tool"""
+    input_data = SearchPaymentsInput(**args)
+
+    # Build query parameters
+    params = {}
+    if input_data.from_date:
+        params["fromDate"] = input_data.from_date
+    if input_data.to_date:
+        params["toDate"] = input_data.to_date
+
+    params["maxRecordCount"] = min(input_data.limit, 500)
+
+    # Make API request
+    response = await client.make_request("payment", params=params)
+
+    # Handle response format
+    items = response if isinstance(response, list) else response.get("items", [])
+
+    # Client-side filters
+    if input_data.contact:
+        filtered = []
+        for item in items:
+            contact = item.get("contactAccountDescription", item.get("contact", ""))
+            if input_data.contact.lower() in contact.lower():
+                filtered.append(item)
+        items = filtered
+
+    if input_data.min_amount is not None:
+        items = [item for item in items if item.get("amount", 0) >= input_data.min_amount]
+
+    if input_data.max_amount is not None:
+        items = [item for item in items if item.get("amount", 0) <= input_data.max_amount]
+
+    # Apply limit
+    items = items[:input_data.limit]
+
+    # Format response
+    if input_data.format == "json":
+        return format_response({"items": items, "totalCount": len(items)}, "json")
+    else:
+        return format_payments(items, len(items))
+
+
+async def handle_search_products(client: IplicitAPIClient, args: dict) -> str:
+    """Handle search_products tool"""
+    input_data = SearchProductsInput(**args)
+
+    # Build query parameters
+    params = {"maxRecordCount": min(input_data.limit, 500)}
+
+    # Make API request
+    response = await client.make_request("product", params=params)
+
+    # Handle response format
+    items = response if isinstance(response, list) else response.get("items", [])
+
+    # Client-side filters
+    if input_data.search_term:
+        filtered = []
+        for item in items:
+            code = item.get("code", "").lower()
+            desc = item.get("description", item.get("name", "")).lower()
+            if input_data.search_term.lower() in code or input_data.search_term.lower() in desc:
+                filtered.append(item)
+        items = filtered
+
+    if input_data.active_only:
+        items = [item for item in items if item.get("isActive", True)]
+
+    if input_data.product_type:
+        items = [item for item in items if item.get("productType") == input_data.product_type]
+
+    # Apply limit
+    items = items[:input_data.limit]
+
+    # Format response
+    if input_data.format == "json":
+        return format_response({"items": items, "totalCount": len(items)}, "json")
+    else:
+        return format_products(items, len(items))
+
+
+async def handle_get_product(client: IplicitAPIClient, args: dict) -> str:
+    """Handle get_product tool"""
+    input_data = GetProductInput(**args)
+
+    # Get product by ID
+    response = await client.make_request(f"product/{input_data.product_id}")
+
+    # Format response
+    if input_data.format == "json":
+        return format_response(response, "json")
+    else:
+        return format_single_product(response)
 
 
 def main():

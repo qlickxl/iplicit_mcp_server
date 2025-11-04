@@ -419,3 +419,247 @@ def format_updated_document(document: Dict, format_type: str) -> str:
             md += f"| {desc} | {qty} | {price} | {amount} |\n"
 
     return md
+
+
+# ===== PHASE 3: ADDITIONAL RESOURCE FORMATTERS =====
+
+
+def format_purchase_orders(items: List[Dict], total_count: int) -> str:
+    """Format purchase orders list as markdown table"""
+    if not items:
+        return "No purchase orders found."
+
+    md = f"## Purchase Orders\n\n"
+    md += f"Found **{len(items)}** purchase orders"
+    if total_count > len(items):
+        md += f" (showing first {len(items)} of {total_count} total)"
+    md += "\n\n"
+
+    # Create table
+    md += "| PO Number | Date | Supplier | Amount | Status |\n"
+    md += "|-----------|------|----------|--------|--------|\n"
+
+    for order in items:
+        po_no = order.get("docNo", order.get("number", "N/A"))
+        po_date = _format_date(order.get("docDate", order.get("date")))
+        supplier = order.get("contactAccountDescription", order.get("supplier", "N/A"))
+        amount = _format_currency(order.get("grossAmount", order.get("total")))
+        status = order.get("status", "N/A")
+
+        md += f"| {po_no} | {po_date} | {supplier} | {amount} | {status} |\n"
+
+    return md
+
+
+def format_single_purchase_order(order: Dict) -> str:
+    """Format single purchase order with details"""
+    md = f"## Purchase Order Details\n\n"
+
+    po_no = order.get("docNo", order.get("number", "N/A"))
+    md += f"**PO Number:** {po_no}\n\n"
+
+    # Header info
+    md += f"- **Date:** {_format_date(order.get('docDate', order.get('date')))}\n"
+    md += f"- **Supplier:** {order.get('contactAccountDescription', 'N/A')}\n"
+    md += f"- **Status:** {order.get('status', 'N/A')}\n"
+    md += f"- **Currency:** {order.get('currency', 'N/A')}\n"
+
+    if order.get("description"):
+        md += f"- **Description:** {order['description']}\n"
+
+    # Amounts
+    net = order.get("netAmount", order.get("netCurrencyAmount"))
+    tax = order.get("taxAmount", order.get("taxCurrencyAmount"))
+    gross = order.get("grossAmount", order.get("grossCurrencyAmount"))
+
+    if net is not None or tax is not None or gross is not None:
+        md += "\n### Amounts\n\n"
+        if net is not None:
+            md += f"- **Net:** {_format_currency(net)}\n"
+        if tax is not None:
+            md += f"- **Tax:** {_format_currency(tax)}\n"
+        if gross is not None:
+            md += f"- **Gross Total:** {_format_currency(gross)}\n"
+
+    # Line items
+    lines = order.get("details", order.get("lines", []))
+    if lines:
+        md += f"\n### Line Items ({len(lines)})\n\n"
+        md += "| Description | Quantity | Unit Price | Amount |\n"
+        md += "|-------------|----------|------------|--------|\n"
+
+        for line in lines:
+            desc = line.get("description", "N/A")
+            qty = line.get("quantity", "")
+            price = _format_currency(line.get("netCurrencyUnitPrice", line.get("unitPrice")))
+            line_amount = line.get("netAmount", line.get("netCurrencyAmount"))
+            amount = _format_currency(line_amount)
+            md += f"| {desc} | {qty} | {price} | {amount} |\n"
+
+    return md
+
+
+def format_sale_orders(items: List[Dict], total_count: int) -> str:
+    """Format sales orders list as markdown table"""
+    if not items:
+        return "No sales orders found."
+
+    md = f"## Sales Orders\n\n"
+    md += f"Found **{len(items)}** sales orders"
+    if total_count > len(items):
+        md += f" (showing first {len(items)} of {total_count} total)"
+    md += "\n\n"
+
+    # Create table
+    md += "| SO Number | Date | Customer | Amount | Status |\n"
+    md += "|-----------|------|----------|--------|--------|\n"
+
+    for order in items:
+        so_no = order.get("docNo", order.get("number", "N/A"))
+        so_date = _format_date(order.get("docDate", order.get("date")))
+        customer = order.get("contactAccountDescription", order.get("customer", "N/A"))
+        amount = _format_currency(order.get("grossAmount", order.get("total")))
+        status = order.get("status", "N/A")
+
+        md += f"| {so_no} | {so_date} | {customer} | {amount} | {status} |\n"
+
+    return md
+
+
+def format_single_sale_order(order: Dict) -> str:
+    """Format single sales order with details"""
+    md = f"## Sales Order Details\n\n"
+
+    so_no = order.get("docNo", order.get("number", "N/A"))
+    md += f"**SO Number:** {so_no}\n\n"
+
+    # Header info
+    md += f"- **Date:** {_format_date(order.get('docDate', order.get('date')))}\n"
+    md += f"- **Customer:** {order.get('contactAccountDescription', 'N/A')}\n"
+    md += f"- **Status:** {order.get('status', 'N/A')}\n"
+    md += f"- **Currency:** {order.get('currency', 'N/A')}\n"
+
+    if order.get("description"):
+        md += f"- **Description:** {order['description']}\n"
+
+    # Amounts
+    net = order.get("netAmount", order.get("netCurrencyAmount"))
+    tax = order.get("taxAmount", order.get("taxCurrencyAmount"))
+    gross = order.get("grossAmount", order.get("grossCurrencyAmount"))
+
+    if net is not None or tax is not None or gross is not None:
+        md += "\n### Amounts\n\n"
+        if net is not None:
+            md += f"- **Net:** {_format_currency(net)}\n"
+        if tax is not None:
+            md += f"- **Tax:** {_format_currency(tax)}\n"
+        if gross is not None:
+            md += f"- **Gross Total:** {_format_currency(gross)}\n"
+
+    # Line items
+    lines = order.get("details", order.get("lines", []))
+    if lines:
+        md += f"\n### Line Items ({len(lines)})\n\n"
+        md += "| Description | Quantity | Unit Price | Amount |\n"
+        md += "|-------------|----------|------------|--------|\n"
+
+        for line in lines:
+            desc = line.get("description", "N/A")
+            qty = line.get("quantity", "")
+            price = _format_currency(line.get("netCurrencyUnitPrice", line.get("unitPrice")))
+            line_amount = line.get("netAmount", line.get("netCurrencyAmount"))
+            amount = _format_currency(line_amount)
+            md += f"| {desc} | {qty} | {price} | {amount} |\n"
+
+    return md
+
+
+def format_payments(items: List[Dict], total_count: int) -> str:
+    """Format payments list as markdown table"""
+    if not items:
+        return "No payments found."
+
+    md = f"## Payments\n\n"
+    md += f"Found **{len(items)}** payments"
+    if total_count > len(items):
+        md += f" (showing first {len(items)} of {total_count} total)"
+    md += "\n\n"
+
+    # Create table
+    md += "| Date | Contact | Amount | Type | Reference |\n"
+    md += "|------|---------|--------|------|----------|\n"
+
+    for payment in items:
+        pay_date = _format_date(payment.get("paymentDate", payment.get("date")))
+        contact = payment.get("contactAccountDescription", payment.get("contact", "N/A"))
+        amount = _format_currency(payment.get("amount", payment.get("grossAmount")))
+        pay_type = payment.get("paymentType", payment.get("type", "N/A"))
+        reference = payment.get("reference", payment.get("docNo", "N/A"))
+
+        md += f"| {pay_date} | {contact} | {amount} | {pay_type} | {reference} |\n"
+
+    return md
+
+
+def format_products(items: List[Dict], total_count: int) -> str:
+    """Format products list as markdown table"""
+    if not items:
+        return "No products found."
+
+    md = f"## Products\n\n"
+    md += f"Found **{len(items)}** products"
+    if total_count > len(items):
+        md += f" (showing first {len(items)} of {total_count} total)"
+    md += "\n\n"
+
+    # Create table
+    md += "| Code | Description | Price | Active |\n"
+    md += "|------|-------------|-------|--------|\n"
+
+    for product in items:
+        code = product.get("code", "N/A")
+        desc = product.get("description", product.get("name", "N/A"))
+        price = _format_currency(product.get("salePrice", product.get("price")))
+        is_active = "✓" if product.get("isActive", True) else "✗"
+
+        md += f"| {code} | {desc} | {price} | {is_active} |\n"
+
+    return md
+
+
+def format_single_product(product: Dict) -> str:
+    """Format single product with details"""
+    md = f"## Product Details\n\n"
+
+    code = product.get("code", "N/A")
+    md += f"**Product Code:** {code}\n\n"
+
+    # Basic info
+    md += f"- **Description:** {product.get('description', product.get('name', 'N/A'))}\n"
+    md += f"- **Active:** {'Yes' if product.get('isActive', True) else 'No'}\n"
+
+    if product.get("productType"):
+        md += f"- **Type:** {product['productType']}\n"
+
+    # Pricing
+    sale_price = product.get("salePrice")
+    purchase_price = product.get("purchasePrice")
+
+    if sale_price is not None or purchase_price is not None:
+        md += "\n### Pricing\n\n"
+        if sale_price is not None:
+            md += f"- **Sale Price:** {_format_currency(sale_price)}\n"
+        if purchase_price is not None:
+            md += f"- **Purchase Price:** {_format_currency(purchase_price)}\n"
+
+    # Stock
+    stock_level = product.get("stockLevel", product.get("quantityOnHand"))
+    if stock_level is not None:
+        md += "\n### Stock\n\n"
+        md += f"- **On Hand:** {stock_level}\n"
+
+        reorder_level = product.get("reorderLevel")
+        if reorder_level is not None:
+            md += f"- **Reorder Level:** {reorder_level}\n"
+
+    return md
