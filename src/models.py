@@ -1,7 +1,7 @@
 """
 iplicit MCP Server - Pydantic Models
 
-Copyright (c) 2025 QLickXL
+Copyright (c) 2025 QlickXL Limited
 Licensed under MIT License - see LICENSE file for details
 
 Repository: https://github.com/qlickxl/iplicit_mcp_server
