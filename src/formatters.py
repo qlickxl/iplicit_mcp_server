@@ -1,4 +1,11 @@
-"""Response formatters for converting API data to JSON or Markdown"""
+"""
+iplicit MCP Server - Response Formatters
+
+Copyright (c) 2025 QLickXL
+Licensed under MIT License - see LICENSE file for details
+
+Repository: https://github.com/qlickxl/iplicit_mcp_server
+"""
 
 import json
 from typing import Any, Dict, List

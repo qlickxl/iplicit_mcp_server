@@ -1,4 +1,11 @@
-"""Session management for iplicit API authentication"""
+"""
+iplicit MCP Server - Session Management
+
+Copyright (c) 2025 QLickXL
+Licensed under MIT License - see LICENSE file for details
+
+Repository: https://github.com/qlickxl/iplicit_mcp_server
+"""
 
 import os
 import asyncio

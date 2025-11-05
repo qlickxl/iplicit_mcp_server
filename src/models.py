@@ -1,4 +1,11 @@
-"""Pydantic models for iplicit MCP Server"""
+"""
+iplicit MCP Server - Pydantic Models
+
+Copyright (c) 2025 QLickXL
+Licensed under MIT License - see LICENSE file for details
+
+Repository: https://github.com/qlickxl/iplicit_mcp_server
+"""
 
 from typing import Optional, Literal, List
 from pydantic import BaseModel, Field, field_validator

@@ -1,4 +1,11 @@
-"""API client for making requests to iplicit API"""
+"""
+iplicit MCP Server - API Client Module
+
+Copyright (c) 2025 QLickXL
+Licensed under MIT License - see LICENSE file for details
+
+Repository: https://github.com/qlickxl/iplicit_mcp_server
+"""
 
 import asyncio
 from typing import Optional, Dict, Any
