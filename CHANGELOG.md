@@ -159,12 +159,6 @@ None
 
 Not applicable (first major release).
 
-### Contributors
-
-- Built with Claude Code (Anthropic)
-- Powered by iplicit API
-- MCP Python SDK
-
 ### Links
 
 - **Repository:** https://github.com/qlickxl/iplicit_mcp_server
