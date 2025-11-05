@@ -43,3 +43,12 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Development & Exploration Files (not for public GitHub)
+explore_*.py
+test_phase*.py
+add_phase*.py
+PHASE_*_DESIGN.md
+PHASE_*_COMPLETE.md
+*_DESIGN.md
+*_exploration.py
